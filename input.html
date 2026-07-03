@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบบันทึกข้อมูล — ป้องกันและปราบปรามการฟอกเงิน จ.หนองบัวลำภู</title>
+<meta name="theme-color" content="#071510">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg0:#060e0b;--bg1:#0a1712;--bg2:#0e2018;
+--glass:rgba(255,255,255,.035);--glass2:rgba(255,255,255,.07);
+--line:rgba(212,175,55,.18);--line2:rgba(255,255,255,.09);
+--ink:#eef6f1;--ink2:#a8bfb3;--muted:#6f8a7d;
+--gold:#d4af37;--gold2:#f3d98b;--em:#10b981;--em2:#34d399;
+--ok:#34d399;--err:#ff6b5e;--seize:#4cc9f0;
+--card:var(--glass);--soft:var(--glass2);--navy:#0a1712;--navy2:#0e2018;
+--radius:18px;--shadow:0 14px 36px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg0);font-family:'Sarabun',sans-serif;color:var(--ink)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+ radial-gradient(1000px 640px at 85% -10%,rgba(16,185,129,.10),transparent 60%),
+ radial-gradient(800px 560px at -10% 40%,rgba(212,175,55,.07),transparent 55%),
+ linear-gradient(180deg,var(--bg1),var(--bg0) 60%)}
+.wrap{max-width:1220px;margin:0 auto;padding:0 16px 70px}
+h1,h2,h3{font-family:'Kanit'}
+.num{font-family:'Chakra Petch',monospace}
+.hero{position:sticky;top:0;z-index:50;background:rgba(6,14,11,.85);backdrop-filter:blur(14px);
+ color:var(--ink);border-bottom:1px solid var(--line);padding:13px 20px;margin-bottom:22px;
+ display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hero img{width:42px;height:42px;object-fit:contain}
+.hero h1{font-size:1rem;margin:0;font-weight:600}
+.hero p{margin:3px 0 0;font-size:.7rem;color:var(--muted);letter-spacing:.12em}
+.hero .out{margin-left:auto;display:flex;gap:9px}
+.btn{border:1px solid var(--line);border-radius:11px;padding:9px 16px;font-family:'Kanit';font-size:.83rem;cursor:pointer;transition:.25s;background:var(--glass);color:var(--ink)}
+.btn:hover{border-color:var(--gold);background:var(--glass2);transform:translateY(-1px)}
+.btn.p{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#231a02;border:none;font-weight:600;box-shadow:0 6px 20px rgba(212,175,55,.3)}
+.btn.s{background:var(--glass);color:var(--ink2)}
+.btn.d{background:rgba(255,107,94,.12);color:var(--err);border-color:rgba(255,107,94,.35)}
+.btn.b{background:rgba(76,201,240,.14);color:var(--seize);border-color:rgba(76,201,240,.4)}
+/* PIN GATE */
+#gate{position:fixed;inset:0;background:
+ radial-gradient(900px 600px at 70% 20%,rgba(16,185,129,.12),transparent 60%),
+ linear-gradient(160deg,var(--bg1),var(--bg0));display:grid;place-items:center;z-index:100}
+.gcard{background:linear-gradient(165deg,var(--glass2),var(--glass));border:1px solid var(--line);
+ border-radius:24px;padding:38px 32px;width:min(94vw,390px);text-align:center;
+ box-shadow:0 30px 80px rgba(0,0,0,.55);backdrop-filter:blur(10px)}
+.gcard img{width:80px;margin-bottom:10px;filter:drop-shadow(0 8px 26px rgba(212,175,55,.35))}
+.gcard h2{margin:0 0 4px;font-size:1.08rem;font-weight:700}
+.gcard p{color:var(--muted);font-size:.78rem;margin:0 0 20px;letter-spacing:.05em}
+.gcard input{width:100%;text-align:center;font-size:1.5rem;letter-spacing:.45em;padding:12px;
+ border:1.5px solid var(--line2);border-radius:13px;font-family:'Chakra Petch';background:var(--bg1);color:var(--gold2)}
+.gcard input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.15)}
+#gErr{color:var(--err);font-size:.78rem;min-height:18px;margin:9px 0}
+/* TABS */
+.tabs{display:flex;gap:9px;margin-bottom:16px;flex-wrap:wrap}
+.tab{border:1px solid var(--line2);background:var(--glass);color:var(--ink2);border-radius:12px;padding:10px 20px;font-family:'Kanit';font-size:.88rem;cursor:pointer;transition:.25s}
+.tab:hover{border-color:var(--gold)}
+.tab.on{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#231a02;border-color:transparent;font-weight:600}
+.pane{display:none}.pane.on{display:block;animation:fade .35s}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+.card{background:linear-gradient(165deg,var(--glass2),var(--glass));border:1px solid var(--line2);border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow);margin-bottom:16px}
+.card h3{margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--gold2)}
+/* FORM */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:14px}
+.fg{display:flex;flex-direction:column;gap:6px}
+.fg label{font-size:.76rem;font-weight:600;color:var(--ink2)}
+.fg label b{color:var(--err)}
+.fg input,.fg select,.fg textarea{padding:10px 12px;border:1.5px solid var(--line2);border-radius:11px;
+ font-family:'Sarabun';font-size:.88rem;background:var(--bg1);color:var(--ink);transition:.2s}
+.fg select option{background:var(--bg1)}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.12)}
+.fg input::-webkit-calendar-picker-indicator{filter:invert(.8)}
+.fg.full{grid-column:1/-1}
+.note{font-size:.71rem;color:var(--muted)}
+.factions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center}
+#cEditing,#aEditing{font-size:.78rem;color:var(--seize);font-weight:600}
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{color:var(--gold2);font-family:'Kanit';font-weight:600;padding:10px;text-align:left;border-bottom:1px solid var(--line);font-size:.76rem;white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line2);vertical-align:top;color:var(--ink2)}
+td b{color:var(--ink)}
+tr:hover td{background:var(--glass)}
+.tbl-scroll{overflow:auto;max-height:430px}
+.mini{font-size:.71rem;color:var(--muted)}
+/* EXCEL */
+.xrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.xbox{border:1.5px dashed var(--line);border-radius:16px;padding:26px 22px;text-align:center;background:var(--glass);transition:.3s}
+.xbox:hover{border-color:var(--gold);transform:translateY(-3px)}
+.xbox h4{margin:0 0 6px;font-family:'Kanit';color:var(--gold2)}
+.xbox p{font-size:.77rem;color:var(--muted);margin:0 0 14px;line-height:1.7}
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px}
+.tst{background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:12px 18px;border-radius:13px;font-size:.85rem;box-shadow:0 12px 30px rgba(0,0,0,.5);animation:in .25s}
+.tst.ok{border-left:4px solid var(--em2)}.tst.err{border-left:4px solid var(--err)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+#busy{position:fixed;inset:0;background:rgba(6,14,11,.66);backdrop-filter:blur(3px);display:none;place-items:center;z-index:150;color:var(--gold2);font-family:'Kanit';font-size:1rem}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#1e3328;border-radius:99px}
+</style>
+</head>
+<body>
+
+<!-- PIN GATE -->
+<div id="gate">
+  <div class="gcard">
+    <img src="ตราหนองบัวลำภู.png" onerror="this.style.display='none'">
+    <h2>ศูนย์บัญชาการพิทักษ์ทรัพย์</h2>
+    <p>ระบบบันทึกข้อมูล · สำหรับเจ้าหน้าที่ปกครองจังหวัด<br>NONG BUA LAM PHU · AML COMMAND</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="10" placeholder="••••••" autocomplete="off">
+    <div id="gErr"></div>
+    <button class="btn p" style="width:100%" onclick="login()">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<div class="hero">
+  <img src="ตราหนองบัวลำภู.png" onerror="this.style.display='none'">
+  <div>
+    <h1>ระบบบันทึกข้อมูล · ศูนย์บัญชาการพิทักษ์ทรัพย์</h1>
+    <p>ANTI-MONEY LAUNDERING · บันทึก/แก้ไข REALTIME · นำเข้า-ส่งออก EXCEL</p>
+  </div>
+  <div class="out"><a class="btn b" href="index.html" style="text-decoration:none">📊 เปิดแดชบอร์ด</a>
+<button class="btn s" onclick="logout()">ออกจากระบบ</button></div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab on" data-p="pCase">① คดีมูลฐาน</button>
+    <button class="tab" data-p="pAct">② มาตรการ / กิจกรรม</button>
+    <button class="tab" data-p="pXls">③ นำเข้า / ส่งออก Excel</button>
+  </div>
+
+  <!-- ============ ① CASES ============ -->
+  <div class="pane on" id="pCase">
+    <div class="card">
+      <h3>📋 บันทึกข้อมูลคดีมูลฐาน <span id="cEditing"></span></h3>
+      <form id="fCase" onsubmit="return false">
+        <input type="hidden" id="c_id">
+        <div class="fgrid">
+          <div class="fg"><label>เลขที่คดี / อ้างอิงสำนวน <b>*</b></label>
+            <input id="c_case_no" required placeholder="เช่น คดีที่ 539/2568">
+            <span class="note">🛡️ PDPA: ห้ามใส่ชื่อ-สกุลผู้ต้องหา/ผู้เสียหาย ใช้เลขคดีราชการเท่านั้น</span></div>
+          <div class="fg"><label>สถานีตำรวจ / หน่วยงานเจ้าของคดี <b>*</b></label>
+            <select id="c_station"></select></div>
+          <div class="fg"><label>อำเภอ <b>*</b></label><select id="c_district"></select></div>
+          <div class="fg"><label>ประเภทคดีมูลฐาน (ฐานความผิด) <b>*</b></label><select id="c_case_type"></select></div>
+          <div class="fg"><label>สถานะความคืบหน้า <b>*</b></label><select id="c_status"></select></div>
+          <div class="fg"><label>มูลค่าทรัพย์สินที่เกี่ยวข้อง/ส่งอายัด (บาท)</label>
+            <input id="c_amount" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="fg"><label>วันที่รับคดี/บันทึก</label><input id="c_date" type="date"></div>
+          <div class="fg"><label>หน่วยงานผู้บันทึกข้อมูล</label><select id="c_recorder"></select></div>
+          <div class="fg full"><label>รายละเอียดสำนวน (เห็นเฉพาะเจ้าหน้าที่ — ไม่แสดงบนแดชบอร์ดสาธารณะ)</label>
+            <textarea id="c_detail" rows="2" placeholder="บันทึกภายใน เช่น พฤติการณ์คดี การประสาน ปปง."></textarea></div>
+        </div>
+        <div class="factions">
+          <button class="btn p" onclick="saveCase()">💾 บันทึกข้อมูล</button>
+          <button class="btn s" onclick="resetCase()">ล้างฟอร์ม</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h3>ทะเบียนคดีทั้งหมด <span class="mini" id="cCount"></span></h3>
+      <div class="tbl-scroll"><table><thead><tr>
+        <th>เลขที่คดี</th><th>สภ./หน่วยงาน</th><th>อำเภอ</th><th>ฐานความผิด</th><th>สถานะ</th><th>บาท</th><th>จัดการ</th>
+      </tr></thead><tbody id="tbC"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ============ ② ACTIVITIES ============ -->
+  <div class="pane" id="pAct">
+    <div class="card">
+      <h3>🎯 บันทึกผลการดำเนินงานตามมาตรการ <span id="aEditing"></span></h3>
+      <form id="fAct" onsubmit="return false">
+        <input type="hidden" id="a_id">
+        <div class="fgrid">
+          <div class="fg full"><label>มาตรการหลักที่เกี่ยวข้อง <b>*</b></label><select id="a_measure"></select></div>
+          <div class="fg"><label>อำเภอ <b>*</b></label><select id="a_district"></select></div>
+          <div class="fg"><label>เดือนที่ดำเนินการ <b>*</b></label><input id="a_month" type="month"></div>
+          <div class="fg"><label>ชื่อกิจกรรม</label><input id="a_activity" placeholder="เช่น ตั้งจุดตรวจสกัดกั้นซิมผี"></div>
+          <div class="fg"><label>จำนวนครั้งที่จัดกิจกรรม/ตั้งจุดตรวจ</label><input id="a_times" type="number" min="0" placeholder="0"></div>
+          <div class="fg"><label>กลุ่มเป้าหมาย/ประชาชนที่เข้าร่วม (คน)</label><input id="a_participants" type="number" min="0" placeholder="0"></div>
+          <div class="fg"><label>จำนวนเงิน/ทรัพย์สินที่ส่งอายัด (บาท)</label><input id="a_amount" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="fg"><label>หน่วยงานผู้บันทึกข้อมูล</label><select id="a_agency"></select></div>
+          <div class="fg full"><label>รายละเอียดเพิ่มเติม (เห็นเฉพาะเจ้าหน้าที่)</label>
+            <textarea id="a_detail" rows="2"></textarea></div>
+        </div>
+        <div class="factions">
+          <button class="btn p" onclick="saveAct()">💾 บันทึกข้อมูล</button>
+          <button class="btn s" onclick="resetAct()">ล้างฟอร์ม</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h3>กิจกรรมทั้งหมด <span class="mini" id="aCount"></span></h3>
+      <div class="tbl-scroll"><table><thead><tr>
+        <th>เดือน</th><th>มาตรการ</th><th>อำเภอ</th><th>กิจกรรม</th><th>ครั้ง</th><th>คน</th><th>บาท</th><th>จัดการ</th>
+      </tr></thead><tbody id="tbA"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ============ ③ EXCEL ============ -->
+  <div class="pane" id="pXls">
+    <div class="card">
+      <h3>📊 นำเข้า / ส่งออกข้อมูลด้วย Excel</h3>
+      <div class="xrow">
+        <div class="xbox">
+          <h4>⬇ ส่งออกข้อมูลปัจจุบัน</h4>
+          <p>ดาวน์โหลดข้อมูลล่าสุดทั้งหมดเป็นไฟล์ .xlsx<br>นำไปแก้ไขแล้วอัปโหลดกลับได้ (ระบบจับคู่ตามคอลัมน์ id)</p>
+          <button class="btn b" onclick="exportXlsx()">ส่งออก Excel</button>
+        </div>
+        <div class="xbox">
+          <h4>⬆ นำเข้าจากไฟล์ Excel</h4>
+          <p>รองรับไฟล์จากเทมเพลตหรือไฟล์ที่ส่งออกไป<br>แถวที่มี id ตรงกับระบบ = แก้ไข · ไม่มี id = เพิ่มใหม่</p>
+          <input type="file" id="xFile" accept=".xlsx,.xls" style="display:none" onchange="importXlsx(this.files[0])">
+          <button class="btn b" onclick="document.getElementById('xFile').click()">เลือกไฟล์นำเข้า</button>
+        </div>
+        <div class="xbox">
+          <h4>📄 เทมเพลตเปล่า</h4>
+          <p>แบบฟอร์ม Excel สำเร็จรูปพร้อมตัวอย่าง<br>และรายการตัวเลือกที่ถูกต้อง</p>
+          <a class="btn s" href="แบบฟอร์มนำเข้าข้อมูล_ฟอกเงิน.xlsx" download style="text-decoration:none;display:inline-block">ดาวน์โหลดเทมเพลต</a>
+        </div>
+      </div>
+      <p class="note" style="margin-top:14px">ชื่อชีตที่ระบบอ่าน: <b>"คดีมูลฐาน"</b> และ <b>"มาตรการ"</b> — ห้ามเปลี่ยนชื่อหัวคอลัมน์แถวแรก</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="busy"><div>⏳ กำลังประมวลผล…</div></div>
+
+<script>
+/* ================= CONFIG ================= */
+const API = '';   // ← ใส่ URL /exec เดียวกับ index.html
+
+const DISTRICTS = ['เมืองหนองบัวลำภู','นากลาง','โนนสัง','ศรีบุญเรือง','สุวรรณคูหา','นาวัง'];
+const STATIONS = ['สภ.เมืองหนองบัวลำภู','สภ.นากลาง','สภ.โนนสัง','สภ.ศรีบุญเรือง','สภ.สุวรรณคูหา','สภ.นาวัง',
+  'สภ.บ้านขาม','สภ.กุดดินจี่','สภ.หนองสวรรค์','สภ.ดงมะไฟ','สภ.โนนขมิ้น','ตำรวจภูธรจังหวัดหนองบัวลำภู','สำนักงาน ปปง. ภาค 4','หน่วยงานอื่น'];
+const CASE_TYPES = ['ฉ้อโกงประชาชน (บัญชีม้า/คอลเซ็นเตอร์)','ยาเสพติด','ธุรกิจสีเทา / เงินกู้นอกระบบ'];
+const STATUSES = ['อยู่ในชั้นพนักงานสอบสวน','สรุปสำนวนส่งฟ้องแล้ว (อัยการพิจารณา)','ศาลมีคำพิพากษา / ยึดทรัพย์เรียบร้อย'];
+const MEASURES = [
+  ['M1','มาตรการที่ 1: สกัดกั้นบัญชีม้า/ซิมผี (จุดตรวจ/ตรวจพัสดุ/จับนายหน้า)'],
+  ['M2','มาตรการที่ 2: สืบสวนขยายผลยึดทรัพย์สิน (แกะรอยเส้นทางการเงิน)'],
+  ['M3','มาตรการที่ 3: สร้างภูมิคุ้มกันชุมชน (แคมเปญเตือนภัย/ให้ความรู้)'],
+  ['M4','มาตรการที่ 4: บูรณาการข้อมูล (Blacklist/อบรมเจ้าหน้าที่)']];
+const AGENCIES = ['ภ.จว.หนองบัวลำภู','ที่ทำการปกครองจังหวัด','สำนักงาน ปปง. ภาค 4','สำนักงานประชาสัมพันธ์จังหวัด',
+  'สำนักงานอัยการจังหวัด','สำนักงานสาธารณสุขจังหวัด','อำเภอ (ทุกอำเภอ)','สำนักงานสถิติจังหวัด','หน่วยงานอื่น'];
+
+const CASE_HEAD = ['id','case_no','station','district','case_type','status','amount','date','detail','recorder','updated_at'];
+const ACT_HEAD  = ['id','measure','district','activity','times','participants','amount','month','agency','detail','updated_at'];
+const CASE_TH = {id:'id (ห้ามแก้)',case_no:'เลขที่คดี',station:'สถานีตำรวจ/หน่วยงาน',district:'อำเภอ',case_type:'ประเภทคดีมูลฐาน',status:'สถานะ',amount:'ทรัพย์สิน(บาท)',date:'วันที่ (YYYY-MM-DD)',detail:'รายละเอียด(ภายใน)',recorder:'หน่วยผู้บันทึก',updated_at:'อัปเดตล่าสุด'};
+const ACT_TH  = {id:'id (ห้ามแก้)',measure:'มาตรการ (M1-M4)',district:'อำเภอ',activity:'ชื่อกิจกรรม',times:'จำนวนครั้ง',participants:'ผู้เข้าร่วม(คน)',amount:'เงินส่งอายัด(บาท)',month:'เดือน (YYYY-MM)',agency:'หน่วยผู้บันทึก',detail:'รายละเอียด(ภายใน)',updated_at:'อัปเดตล่าสุด'};
+
+let PIN = sessionStorage.getItem('aml_pin') || '';
+let DATA = {cases:[], activities:[]};
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n||0).toLocaleString('th-TH');
+
+/* ---------- helpers ---------- */
+function toast(msg, ok=true){
+  const d = document.createElement('div');
+  d.className = 'tst ' + (ok?'ok':'err'); d.textContent = msg;
+  $('toast').appendChild(d); setTimeout(()=>d.remove(), 3800);
+}
+function busy(on){ $('busy').style.display = on ? 'grid' : 'none'; }
+function jsonp(params){
+  return new Promise((res, rej)=>{
+    if(!API){ rej(new Error('ยังไม่ได้ตั้งค่า API — เปิดไฟล์นี้แล้วใส่ URL /exec ในตัวแปร API')); return; }
+    const cb = 'cb' + Date.now() + Math.floor(Math.random()*999);
+    window[cb] = d => { delete window[cb]; s.remove(); res(d); };
+    const q = Object.entries(params).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+    const s = document.createElement('script');
+    s.src = API + '?' + q + '&callback=' + cb;
+    s.onerror = () => { delete window[cb]; s.remove(); rej(new Error('เชื่อมต่อไม่ได้')); };
+    document.body.appendChild(s);
+    setTimeout(()=>{ if(window[cb]){ delete window[cb]; s.remove(); rej(new Error('หมดเวลา')); } }, 25000);
+  });
+}
+
+/* ---------- auth ---------- */
+async function login(){
+  const pin = $('pinInput').value.trim();
+  if(!pin){ $('gErr').textContent = 'กรุณากรอกรหัส'; return; }
+  busy(true);
+  try{
+    const r = await jsonp({action:'verify', pin});
+    if(r.ok){ PIN = pin; sessionStorage.setItem('aml_pin', pin); $('gate').style.display = 'none'; loadData(); }
+    else { $('gErr').textContent = '❌ รหัสไม่ถูกต้อง'; $('pinInput').value = ''; }
+  }catch(e){ $('gErr').textContent = e.message; }
+  busy(false);
+}
+$('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+function logout(){ sessionStorage.removeItem('aml_pin'); location.reload(); }
+
+/* ---------- data ---------- */
+async function loadData(){
+  busy(true);
+  try{
+    const d = await jsonp({action:'data', pin:PIN});
+    if(!d.ok) throw new Error(d.error||'โหลดข้อมูลไม่สำเร็จ');
+    DATA = d; renderTables();
+  }catch(e){ toast(e.message, false); }
+  busy(false);
+}
+
+/* ---------- dropdowns ---------- */
+function fill(id, arr, pairs=false){
+  $(id).innerHTML = (pairs ? arr : arr.map(v=>[v,v])).map(([v,t])=>`<option value="${v}">${t}</option>`).join('');
+}
+fill('c_station', STATIONS); fill('c_district', DISTRICTS); fill('c_case_type', CASE_TYPES);
+fill('c_status', STATUSES); fill('c_recorder', AGENCIES);
+fill('a_measure', MEASURES, true); fill('a_district', DISTRICTS); fill('a_agency', AGENCIES);
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); $(t.dataset.p).classList.add('on');
+});
+
+/* ---------- cases ---------- */
+function resetCase(){ $('fCase').reset(); $('c_id').value=''; $('cEditing').textContent=''; }
+async function saveCase(){
+  const row = {
+    id:$('c_id').value, case_no:$('c_case_no').value.trim(), station:$('c_station').value,
+    district:$('c_district').value, case_type:$('c_case_type').value, status:$('c_status').value,
+    amount:Number($('c_amount').value)||0, date:$('c_date').value, detail:$('c_detail').value.trim(),
+    recorder:$('c_recorder').value
+  };
+  if(!row.case_no){ toast('กรุณากรอกเลขที่คดี', false); return; }
+  busy(true);
+  try{
+    const r = await jsonp({action:'upsert', sheet:'Cases', row:JSON.stringify(row), pin:PIN});
+    if(!r.ok) throw new Error(r.error);
+    toast(r.mode==='update' ? '✅ แก้ไขคดีเรียบร้อย' : '✅ บันทึกคดีใหม่เรียบร้อย');
+    resetCase(); await loadData();
+  }catch(e){ toast(e.message, false); busy(false); }
+}
+function editCase(id){
+  const c = DATA.cases.find(x=>String(x.id)===String(id)); if(!c) return;
+  $('c_id').value=c.id; $('c_case_no').value=c.case_no||''; $('c_station').value=c.station||STATIONS[0];
+  $('c_district').value=c.district||DISTRICTS[0]; $('c_case_type').value=c.case_type||CASE_TYPES[0];
+  $('c_status').value=c.status||STATUSES[0]; $('c_amount').value=c.amount||''; $('c_date').value=(c.date||'').slice(0,10);
+  $('c_detail').value=c.detail||''; $('c_recorder').value=c.recorder||AGENCIES[0];
+  $('cEditing').textContent = `— กำลังแก้ไข ${c.case_no}`;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+async function delRow(sheet, id, label){
+  if(!confirm(`ยืนยันลบ ${label} ?`)) return;
+  busy(true);
+  try{
+    const r = await jsonp({action:'remove', sheet, id, pin:PIN});
+    if(!r.ok) throw new Error(r.error);
+    toast('🗑️ ลบเรียบร้อย'); await loadData();
+  }catch(e){ toast(e.message, false); busy(false); }
+}
+
+/* ---------- activities ---------- */
+function resetAct(){ $('fAct').reset(); $('a_id').value=''; $('aEditing').textContent=''; }
+async function saveAct(){
+  const row = {
+    id:$('a_id').value, measure:$('a_measure').value, district:$('a_district').value,
+    activity:$('a_activity').value.trim(), times:Number($('a_times').value)||0,
+    participants:Number($('a_participants').value)||0, amount:Number($('a_amount').value)||0,
+    month:$('a_month').value, agency:$('a_agency').value, detail:$('a_detail').value.trim()
+  };
+  if(!row.month){ toast('กรุณาเลือกเดือนที่ดำเนินการ', false); return; }
+  busy(true);
+  try{
+    const r = await jsonp({action:'upsert', sheet:'Activities', row:JSON.stringify(row), pin:PIN});
+    if(!r.ok) throw new Error(r.error);
+    toast(r.mode==='update' ? '✅ แก้ไขกิจกรรมเรียบร้อย' : '✅ บันทึกกิจกรรมใหม่เรียบร้อย');
+    resetAct(); await loadData();
+  }catch(e){ toast(e.message, false); busy(false); }
+}
+function editAct(id){
+  const a = DATA.activities.find(x=>String(x.id)===String(id)); if(!a) return;
+  $('a_id').value=a.id; $('a_measure').value=a.measure||'M1'; $('a_district').value=a.district||DISTRICTS[0];
+  $('a_activity').value=a.activity||''; $('a_times').value=a.times||''; $('a_participants').value=a.participants||'';
+  $('a_amount').value=a.amount||''; $('a_month').value=(a.month||'').slice(0,7); $('a_agency').value=a.agency||AGENCIES[0];
+  $('a_detail').value=a.detail||'';
+  $('aEditing').textContent = '— กำลังแก้ไขรายการ';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------- render tables ---------- */
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function renderTables(){
+  const cs = DATA.cases||[], ac = DATA.activities||[];
+  $('cCount').textContent = `(${cs.length} คดี)`;
+  $('tbC').innerHTML = cs.slice().reverse().map(c=>`<tr>
+    <td><b>${esc(c.case_no)}</b><div class="mini">${esc(c.date||'')}</div></td>
+    <td>${esc(c.station)}</td><td>${esc(c.district)}</td><td>${esc(c.case_type)}</td>
+    <td>${esc(c.status)}</td><td style="text-align:right">${Number(c.amount)>0?fmt(c.amount):'-'}</td>
+    <td style="white-space:nowrap"><button class="btn s" onclick="editCase('${c.id}')">✏️</button>
+    <button class="btn d" onclick="delRow('Cases','${c.id}','${esc(c.case_no)}')">🗑️</button></td></tr>`).join('')
+    || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">ยังไม่มีข้อมูล</td></tr>';
+  const mN = k => (MEASURES.find(m=>m[0]===k)||[k,k])[1].split(':')[0];
+  $('aCount').textContent = `(${ac.length} รายการ)`;
+  $('tbA').innerHTML = ac.slice().reverse().map(a=>`<tr>
+    <td>${esc(a.month)}</td><td>${mN(a.measure)}</td><td>${esc(a.district)}</td>
+    <td>${esc(a.activity)}</td><td style="text-align:right">${fmt(a.times)}</td>
+    <td style="text-align:right">${fmt(a.participants)}</td><td style="text-align:right">${Number(a.amount)>0?fmt(a.amount):'-'}</td>
+    <td style="white-space:nowrap"><button class="btn s" onclick="editAct('${a.id}')">✏️</button>
+    <button class="btn d" onclick="delRow('Activities','${a.id}','กิจกรรม ${esc(a.month)}')">🗑️</button></td></tr>`).join('')
+    || '<tr><td colspan="8" style="text-align:center;color:var(--muted)">ยังไม่มีข้อมูล</td></tr>';
+}
+
+/* ---------- Excel export ---------- */
+function sheetFrom(rows, head, th){
+  const aoa = [head.map(h=>th[h])].concat(rows.map(r=>head.map(h=>r[h] ?? '')));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = head.map(h=>({wch: h==='detail'||h==='activity' ? 34 : h==='case_type'||h==='status'||h==='measure' ? 30 : 18}));
+  return ws;
+}
+function exportXlsx(){
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetFrom(DATA.cases||[], CASE_HEAD, CASE_TH), 'คดีมูลฐาน');
+  XLSX.utils.book_append_sheet(wb, sheetFrom(DATA.activities||[], ACT_HEAD, ACT_TH), 'มาตรการ');
+  XLSX.writeFile(wb, 'ข้อมูลฟอกเงิน_หนองบัวลำภู_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  toast('⬇ ส่งออก Excel เรียบร้อย');
+}
+
+/* ---------- Excel import (chunked) ---------- */
+function parseSheet(wb, name, head, th){
+  const ws = wb.Sheets[name]; if(!ws) return [];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if(aoa.length < 2) return [];
+  // ค้นหาแถวหัวตารางใน 5 แถวแรก (เทมเพลตมีแถวชื่อเรื่องอยู่ด้านบน)
+  let hRow = 0;
+  for(let i=0; i<Math.min(5, aoa.length); i++){
+    const cells = aoa[i].map(x=>String(x).trim());
+    if(cells.includes(th.district) || cells.includes('district')){ hRow = i; break; }
+  }
+  const first = aoa[hRow].map(x=>String(x).trim());
+  // จับคู่คอลัมน์ทั้งจากหัวภาษาไทยและชื่อ key อังกฤษ
+  const idx = head.map(h => { let i = first.indexOf(th[h]); if(i<0) i = first.indexOf(h); return i; });
+  return aoa.slice(hRow+1)
+    .filter(r => r.some(c => String(c).trim() !== ''))
+    .map(r => { const o = {}; head.forEach((h,j)=>{ if(idx[j]>=0){ let v=r[idx[j]]; if(v instanceof Date) v=v.toISOString().slice(0,10); o[h]=v; } }); delete o.updated_at; return o; });
+}
+async function importXlsx(file){
+  if(!file) return;
+  busy(true);
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const cRows = parseSheet(wb, 'คดีมูลฐาน', CASE_HEAD, CASE_TH);
+    const aRows = parseSheet(wb, 'มาตรการ', ACT_HEAD, ACT_TH);
+    if(!cRows.length && !aRows.length) throw new Error('ไม่พบข้อมูลในชีต "คดีมูลฐาน" หรือ "มาตรการ"');
+    let done = 0;
+    const CHUNK = 8;   // กัน URL ยาวเกิน (JSONP เป็น GET)
+    for(const [sheet, rows] of [['Cases', cRows], ['Activities', aRows]]){
+      for(let i=0; i<rows.length; i+=CHUNK){
+        const r = await jsonp({action:'import', sheet, rows:JSON.stringify(rows.slice(i,i+CHUNK)), pin:PIN});
+        if(!r.ok) throw new Error(r.error);
+        done += r.inserted + r.updated;
+      }
+    }
+    toast(`✅ นำเข้าเรียบร้อย ${done} รายการ`);
+    await loadData();
+  }catch(e){ toast('นำเข้าไม่สำเร็จ: ' + e.message, false); busy(false); }
+  $('xFile').value = '';
+}
+
+/* ---------- init ---------- */
+if(PIN){
+  jsonp({action:'verify', pin:PIN}).then(r=>{
+    if(r.ok){ $('gate').style.display='none'; loadData(); }
+    else sessionStorage.removeItem('aml_pin');
+  }).catch(()=>{});
+}
+</script>
+</body>
+</html>
