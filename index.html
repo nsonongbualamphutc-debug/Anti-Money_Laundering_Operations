@@ -10,6 +10,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800;900&family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -271,6 +272,7 @@ body.tv .tvexit{display:inline-block}
   <div class="tb-r">
     <span class="live"><i></i><span id="lastUpd">LIVE</span></span>
     <button class="btn" onclick="loadData(true)">⟳ รีเฟรช</button>
+    <a class="btn" href="input.html" style="text-decoration:none" title="ระบบบันทึกข้อมูล (เจ้าหน้าที่)">🔐 บันทึกข้อมูล</a>
     <div class="popwrap">
       <button class="btn" id="btnReport">⬇ รายงาน</button>
       <div class="pop" id="popReport">
@@ -386,7 +388,7 @@ body.tv .tvexit{display:inline-block}
 
 <!-- ============ 06 REGISTRY ============ -->
 <section id="sec6" data-title="ทะเบียนปฏิบัติการ">
-  <div class="shead reveal"><span class="no">06</span><h2>ทะเบียนปฏิบัติการ</h2><p>ข้อมูลเปิดเผยได้ตามหลัก PDPA — แสดงเฉพาะเลขคดีราชการ ไม่มีข้อมูลบุคคล</p></div>
+  <div class="shead reveal"><span class="no">06</span><h2>ทะเบียนปฏิบัติการ</h2><p>ข้อมูลเปิดเผยได้ตามหลัก PDPA — ไม่แสดงเลขคดีและข้อมูลบุคคลต่อสาธารณะ</p></div>
   <div class="card reveal">
     <div class="ttabs">
       <button class="tt on" data-t="tabC">⚖️ คดีมูลฐาน</button>
@@ -394,9 +396,9 @@ body.tv .tvexit{display:inline-block}
     </div>
     <div id="tabC">
       <div class="tbl-scroll"><table><thead><tr>
-        <th>เลขที่คดี</th><th>หน่วยงานเจ้าของคดี</th><th>อำเภอ</th><th>ฐานความผิด</th><th>สถานะ</th><th style="text-align:right">ทรัพย์สิน (บาท)</th>
+        <th>คดี</th><th>วันที่รับคดี</th><th>หน่วยงานเจ้าของคดี</th><th>อำเภอ</th><th>ฐานความผิด</th><th>สถานะ</th><th style="text-align:right">ทรัพย์สิน (บาท)</th>
       </tr></thead><tbody id="tbC"></tbody></table></div>
-      <div class="pdpa">🛡️ รายละเอียดสำนวนเข้าถึงได้เฉพาะเจ้าหน้าที่ผ่านระบบบันทึกข้อมูล</div>
+      <div class="pdpa">🛡️ PDPA: เลขคดีและรายละเอียดสำนวนเข้าถึงได้เฉพาะเจ้าหน้าที่ผ่านระบบบันทึกข้อมูล</div>
     </div>
     <div id="tabA" style="display:none">
       <div class="tbl-scroll"><table><thead><tr>
@@ -430,7 +432,7 @@ body.tv .tvexit{display:inline-block}
 /* ================================================================
    CONFIG — วาง URL Web App (/exec) หลัง Deploy Code.gs
 ================================================================ */
-const API = '';                 // ← ใส่ URL /exec ที่นี่ (ใช้ตัวเดียวกับ input.html)
+const API = 'https://script.google.com/macros/s/AKfycbxDwyHi2EpzPJ0paJ7CIln3MS8c2FVqmjIkXXFIQoPY4RlVe62MwgqabzPckGE4NR4I/exec';                 // ← ใส่ URL /exec ที่นี่ (ใช้ตัวเดียวกับ input.html)
 const GOAL_CASES = 3;
 const REFRESH_MIN = 5;
 /* เป้าหมายรายมาตรการ ปีงบประมาณ 2569 — แก้ตัวเลขได้ตามแผนจังหวัด
@@ -706,12 +708,23 @@ const stChip = s => {
   const c = ['#ff6b5e','#4cc9f0','#34d399'][i] || '#6f8a7d';
   return `<span class="chip" style="color:${c};border-color:${c};background:color-mix(in srgb,${c} 10%,transparent)">${s||'-'}</span>`;
 };
+function thDate(s){
+  s = String(s||'').slice(0,10);
+  if(!s) return '–';
+  const [y,m,d] = s.split('-').map(Number);
+  if(!y||!m) return s;
+  const thM = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const be = y > 2400 ? y : y + 543;
+  return (d?d+' ':'') + thM[m] + ' ' + be;
+}
 function drawTables(A){
-  $('tbC').innerHTML = A.cs.slice().reverse().map(c=>`
-    <tr><td><b class="num">${c.case_no||'-'}</b></td><td>${c.station||'-'}</td><td>${c.district||'-'}</td>
+  // PDPA: ไม่แสดงเลขคดีต่อสาธารณะ — ใช้ลำดับคดี + วันที่รับคดีแทน
+  const sorted = A.cs.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  $('tbC').innerHTML = sorted.map((c,i)=>({c, no:i+1})).reverse().map(({c,no})=>`
+    <tr><td><b>คดีลำดับที่ ${no}</b></td><td class="num">${thDate(c.date)}</td><td>${c.station||'-'}</td><td>${c.district||'-'}</td>
     <td>${c.case_type||'-'}</td><td>${stChip(c.status)}</td>
     <td style="text-align:right" class="num">${Number(c.amount)>0?fmt(c.amount):'–'}</td></tr>`).join('')
-    || '<tr><td colspan="6" style="text-align:center">ยังไม่มีข้อมูล</td></tr>';
+    || '<tr><td colspan="7" style="text-align:center">ยังไม่มีข้อมูล</td></tr>';
   const mName = k => { const m = MEASURES.find(x=>x.k===k); return m ? m.ic+' '+m.name : k; };
   $('tbA').innerHTML = A.ac.slice().reverse().slice(0,40).map(a=>`
     <tr><td class="num">${a.month||'-'}</td><td>${mName(a.measure)}</td><td>${a.district||'-'}</td>

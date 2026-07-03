@@ -10,6 +10,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -99,6 +100,27 @@ tr:hover td{background:var(--glass)}
 .tst{background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:12px 18px;border-radius:13px;font-size:.85rem;box-shadow:0 12px 30px rgba(0,0,0,.5);animation:in .25s}
 .tst.ok{border-left:4px solid var(--em2)}.tst.err{border-left:4px solid var(--err)}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+.sumrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.sum{background:linear-gradient(165deg,var(--glass2),var(--glass));border:1px solid var(--line2);border-radius:15px;padding:14px 18px}
+.sum .sv{font-family:'Chakra Petch';font-weight:700;font-size:1.6rem;color:var(--gold2);line-height:1.2}
+.sum .sl{font-size:.72rem;color:var(--muted);margin-top:3px}
+.search{margin-left:auto;min-width:230px;padding:8px 13px;border:1.5px solid var(--line2);border-radius:11px;background:var(--bg1);color:var(--ink);font-family:'Sarabun';font-size:.82rem;font-weight:400}
+.search:focus{outline:none;border-color:var(--gold)}
+/* MODAL รายละเอียด */
+#modal{position:fixed;inset:0;z-index:180;background:rgba(6,14,11,.72);backdrop-filter:blur(5px);display:none;place-items:center;padding:18px}
+#modal.open{display:grid}
+.mbox{background:linear-gradient(165deg,#122419,#0a1712);border:1px solid var(--line);border-radius:22px;
+  width:min(96vw,640px);max-height:88vh;overflow:auto;padding:28px 30px;box-shadow:0 34px 90px rgba(0,0,0,.65);animation:in .3s}
+.mbox h3{display:flex;align-items:center;gap:10px;margin:0 0 4px;color:var(--gold2);font-size:1.05rem}
+.mbox .msub{color:var(--muted);font-size:.76rem;margin:0 0 20px}
+.dl{display:grid;grid-template-columns:150px 1fr;gap:0;border:1px solid var(--line2);border-radius:14px;overflow:hidden}
+.dl>div{padding:11px 15px;border-bottom:1px solid var(--line2);font-size:.85rem}
+.dl>div:nth-child(odd){background:var(--glass);color:var(--muted);font-family:'Kanit';font-weight:500;font-size:.78rem}
+.dl>div:nth-child(even){color:var(--ink)}
+.dl>div:nth-last-child(-n+2){border-bottom:none}
+.mfoot{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;flex-wrap:wrap}
+.dtl-hl{background:rgba(212,175,55,.08);border:1px dashed var(--line);border-radius:12px;padding:13px 16px;margin-top:14px;font-size:.85rem;line-height:1.8}
+.dtl-hl .lb{font-family:'Kanit';font-size:.74rem;color:var(--gold2);display:block;margin-bottom:4px}
 #busy{position:fixed;inset:0;background:rgba(6,14,11,.66);backdrop-filter:blur(3px);display:none;place-items:center;z-index:150;color:var(--gold2);font-family:'Kanit';font-size:1rem}
 ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#1e3328;border-radius:99px}
 </style>
@@ -114,6 +136,7 @@ tr:hover td{background:var(--glass)}
     <input id="pinInput" type="password" inputmode="numeric" maxlength="10" placeholder="••••••" autocomplete="off">
     <div id="gErr"></div>
     <button class="btn p" style="width:100%" onclick="login()">เข้าสู่ระบบ</button>
+    <a class="btn s" href="index.html" style="width:100%;margin-top:10px;display:block;text-decoration:none;text-align:center">← กลับสู่แดชบอร์ดสาธารณะ</a>
   </div>
 </div>
 
@@ -128,6 +151,12 @@ tr:hover td{background:var(--glass)}
 </div>
 
 <div class="wrap">
+  <div class="sumrow">
+    <div class="sum"><div class="sv num" id="sumC">0</div><div class="sl">คดีมูลฐาน</div></div>
+    <div class="sum"><div class="sv num" id="sumA">0</div><div class="sl">กิจกรรม/มาตรการ</div></div>
+    <div class="sum"><div class="sv num" id="sumAmt">0</div><div class="sl">ทรัพย์สินอายัด (บาท)</div></div>
+    <div class="sum"><div class="sv" id="sumUpd" style="font-size:.95rem">–</div><div class="sl">บันทึกล่าสุด</div></div>
+  </div>
   <div class="tabs">
     <button class="tab on" data-p="pCase">① คดีมูลฐาน</button>
     <button class="tab" data-p="pAct">② มาตรการ / กิจกรรม</button>
@@ -163,7 +192,8 @@ tr:hover td{background:var(--glass)}
       </form>
     </div>
     <div class="card">
-      <h3>ทะเบียนคดีทั้งหมด <span class="mini" id="cCount"></span></h3>
+      <h3 style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">ทะเบียนคดีทั้งหมด <span class="mini" id="cCount"></span>
+        <input class="search" id="qC" placeholder="🔍 ค้นหา เลขคดี/สภ./อำเภอ/สถานะ…" oninput="renderTables()"></h3>
       <div class="tbl-scroll"><table><thead><tr>
         <th>เลขที่คดี</th><th>สภ./หน่วยงาน</th><th>อำเภอ</th><th>ฐานความผิด</th><th>สถานะ</th><th>บาท</th><th>จัดการ</th>
       </tr></thead><tbody id="tbC"></tbody></table></div>
@@ -195,7 +225,8 @@ tr:hover td{background:var(--glass)}
       </form>
     </div>
     <div class="card">
-      <h3>กิจกรรมทั้งหมด <span class="mini" id="aCount"></span></h3>
+      <h3 style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">กิจกรรมทั้งหมด <span class="mini" id="aCount"></span>
+        <input class="search" id="qA" placeholder="🔍 ค้นหา มาตรการ/อำเภอ/กิจกรรม…" oninput="renderTables()"></h3>
       <div class="tbl-scroll"><table><thead><tr>
         <th>เดือน</th><th>มาตรการ</th><th>อำเภอ</th><th>กิจกรรม</th><th>ครั้ง</th><th>คน</th><th>บาท</th><th>จัดการ</th>
       </tr></thead><tbody id="tbA"></tbody></table></div>
@@ -229,12 +260,24 @@ tr:hover td{background:var(--glass)}
   </div>
 </div>
 
+<div id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="mbox">
+    <h3 id="mTitle">รายละเอียด</h3>
+    <p class="msub" id="mSub"></p>
+    <div class="dl" id="mBody"></div>
+    <div class="dtl-hl" id="mDetail" style="display:none"></div>
+    <div class="mfoot">
+      <button class="btn s" onclick="closeModal()">ปิด</button>
+      <button class="btn b" id="mEdit">✏️ แก้ไขรายการนี้</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 <div id="busy"><div>⏳ กำลังประมวลผล…</div></div>
 
 <script>
 /* ================= CONFIG ================= */
-const API = '';   // ← ใส่ URL /exec เดียวกับ index.html
+const API = 'https://script.google.com/macros/s/AKfycbxDwyHi2EpzPJ0paJ7CIln3MS8c2FVqmjIkXXFIQoPY4RlVe62MwgqabzPckGE4NR4I/exec';   // ← ใส่ URL /exec เดียวกับ index.html
 
 const DISTRICTS = ['เมืองหนองบัวลำภู','นากลาง','โนนสัง','ศรีบุญเรือง','สุวรรณคูหา','นาวัง'];
 const STATIONS = ['สภ.เมืองหนองบัวลำภู','สภ.นากลาง','สภ.โนนสัง','สภ.ศรีบุญเรือง','สภ.สุวรรณคูหา','สภ.นาวัง',
@@ -388,26 +431,98 @@ function editAct(id){
 
 /* ---------- render tables ---------- */
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+const fmtB = n => { n = Number(n)||0; return n >= 1e6 ? (n/1e6).toFixed(2)+' ล้าน' : fmt(n); };
+function hitQ(obj, q){
+  if(!q) return true;
+  q = q.toLowerCase();
+  return Object.values(obj).some(v => String(v??'').toLowerCase().includes(q));
+}
 function renderTables(){
-  const cs = DATA.cases||[], ac = DATA.activities||[];
-  $('cCount').textContent = `(${cs.length} คดี)`;
+  const qc = ($('qC')?.value||'').trim(), qa = ($('qA')?.value||'').trim();
+  const csAll = DATA.cases||[], acAll = DATA.activities||[];
+  const cs = csAll.filter(c=>hitQ(c, qc)), ac = acAll.filter(a=>hitQ(a, qa));
+
+  // แถบสรุป
+  const amt = csAll.reduce((s,c)=>s+(Number(c.amount)||0),0) + acAll.reduce((s,a)=>s+(Number(a.amount)||0),0);
+  $('sumC').textContent = fmt(csAll.length);
+  $('sumA').textContent = fmt(acAll.length);
+  $('sumAmt').textContent = fmtB(amt);
+  const upds = [...csAll, ...acAll].map(x=>String(x.updated_at||'')).filter(Boolean).sort();
+  $('sumUpd').textContent = upds.length ? upds[upds.length-1] : '–';
+
+  $('cCount').textContent = qc ? `(พบ ${cs.length} จาก ${csAll.length} คดี)` : `(${csAll.length} คดี)`;
   $('tbC').innerHTML = cs.slice().reverse().map(c=>`<tr>
     <td><b>${esc(c.case_no)}</b><div class="mini">${esc(c.date||'')}</div></td>
     <td>${esc(c.station)}</td><td>${esc(c.district)}</td><td>${esc(c.case_type)}</td>
     <td>${esc(c.status)}</td><td style="text-align:right">${Number(c.amount)>0?fmt(c.amount):'-'}</td>
-    <td style="white-space:nowrap"><button class="btn s" onclick="editCase('${c.id}')">✏️</button>
-    <button class="btn d" onclick="delRow('Cases','${c.id}','${esc(c.case_no)}')">🗑️</button></td></tr>`).join('')
+    <td style="white-space:nowrap"><button class="btn b" onclick="viewCase('${c.id}')" title="ดูรายละเอียด">👁️</button>
+    <button class="btn s" onclick="editCase('${c.id}')" title="แก้ไข">✏️</button>
+    <button class="btn d" onclick="delRow('Cases','${c.id}','${esc(c.case_no)}')" title="ลบ">🗑️</button></td></tr>`).join('')
     || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">ยังไม่มีข้อมูล</td></tr>';
   const mN = k => (MEASURES.find(m=>m[0]===k)||[k,k])[1].split(':')[0];
-  $('aCount').textContent = `(${ac.length} รายการ)`;
+  $('aCount').textContent = qa ? `(พบ ${ac.length} จาก ${acAll.length} รายการ)` : `(${acAll.length} รายการ)`;
   $('tbA').innerHTML = ac.slice().reverse().map(a=>`<tr>
     <td>${esc(a.month)}</td><td>${mN(a.measure)}</td><td>${esc(a.district)}</td>
     <td>${esc(a.activity)}</td><td style="text-align:right">${fmt(a.times)}</td>
     <td style="text-align:right">${fmt(a.participants)}</td><td style="text-align:right">${Number(a.amount)>0?fmt(a.amount):'-'}</td>
-    <td style="white-space:nowrap"><button class="btn s" onclick="editAct('${a.id}')">✏️</button>
-    <button class="btn d" onclick="delRow('Activities','${a.id}','กิจกรรม ${esc(a.month)}')">🗑️</button></td></tr>`).join('')
+    <td style="white-space:nowrap"><button class="btn b" onclick="viewAct('${a.id}')" title="ดูรายละเอียด">👁️</button>
+    <button class="btn s" onclick="editAct('${a.id}')" title="แก้ไข">✏️</button>
+    <button class="btn d" onclick="delRow('Activities','${a.id}','กิจกรรม ${esc(a.month)}')" title="ลบ">🗑️</button></td></tr>`).join('')
     || '<tr><td colspan="8" style="text-align:center;color:var(--muted)">ยังไม่มีข้อมูล</td></tr>';
 }
+
+/* ---------- MODAL รายละเอียด (สำหรับเปิดให้ผู้บริหารดูเชิงลึก) ---------- */
+function openModal(){ $('modal').classList.add('open'); }
+function closeModal(){ $('modal').classList.remove('open'); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+function dlRows(pairs){
+  return pairs.map(([k,v])=>`<div>${k}</div><div>${v!==''&&v!==undefined&&v!==null?v:'–'}</div>`).join('');
+}
+function viewCase(id){
+  const c = DATA.cases.find(x=>String(x.id)===String(id)); if(!c) return;
+  $('mTitle').innerHTML = `⚖️ ${esc(c.case_no||'คดีมูลฐาน')}`;
+  $('mSub').textContent = 'รายละเอียดคดีมูลฐาน — ข้อมูลภายใน เข้าถึงเฉพาะเจ้าหน้าที่';
+  $('mBody').innerHTML = dlRows([
+    ['เลขที่คดี', '<b>'+esc(c.case_no)+'</b>'],
+    ['หน่วยงานเจ้าของคดี', esc(c.station)],
+    ['อำเภอ', esc(c.district)],
+    ['ฐานความผิด', esc(c.case_type)],
+    ['สถานะ', esc(c.status)],
+    ['ทรัพย์สินเกี่ยวข้อง/อายัด', Number(c.amount)>0 ? fmt(c.amount)+' บาท' : '–'],
+    ['วันที่รับคดี', esc(c.date)],
+    ['หน่วยผู้บันทึก', esc(c.recorder)],
+    ['บันทึกล่าสุด', esc(c.updated_at)]
+  ]);
+  const d = $('mDetail');
+  if(String(c.detail||'').trim()){
+    d.style.display=''; d.innerHTML = `<span class="lb">📝 รายละเอียดสำนวน (ภายใน)</span>${esc(c.detail)}`;
+  } else d.style.display='none';
+  $('mEdit').onclick = ()=>{ closeModal(); editCase(id); };
+  openModal();
+}
+function viewAct(id){
+  const a = DATA.activities.find(x=>String(x.id)===String(id)); if(!a) return;
+  const mN = (MEASURES.find(m=>m[0]===a.measure)||[a.measure,a.measure])[1];
+  $('mTitle').innerHTML = `🚧 ${esc(a.activity||'กิจกรรม/มาตรการ')}`;
+  $('mSub').textContent = 'รายละเอียดผลการดำเนินงาน — ข้อมูลภายใน เข้าถึงเฉพาะเจ้าหน้าที่';
+  $('mBody').innerHTML = dlRows([
+    ['มาตรการ', esc(mN)],
+    ['อำเภอ', esc(a.district)],
+    ['เดือนที่ดำเนินการ', esc(a.month)],
+    ['จำนวนครั้ง', fmt(a.times)],
+    ['ผู้เข้าร่วม', fmt(a.participants)+' คน'],
+    ['เงิน/ทรัพย์สินส่งอายัด', Number(a.amount)>0 ? fmt(a.amount)+' บาท' : '–'],
+    ['หน่วยผู้บันทึก', esc(a.agency)],
+    ['บันทึกล่าสุด', esc(a.updated_at)]
+  ]);
+  const d = $('mDetail');
+  if(String(a.detail||'').trim()){
+    d.style.display=''; d.innerHTML = `<span class="lb">📝 รายละเอียดเพิ่มเติม (ภายใน)</span>${esc(a.detail)}`;
+  } else d.style.display='none';
+  $('mEdit').onclick = ()=>{ closeModal(); editAct(id); };
+  openModal();
+}
+window.viewCase = viewCase; window.viewAct = viewAct; window.closeModal = closeModal;
 
 /* ---------- Excel export ---------- */
 function sheetFrom(rows, head, th){
