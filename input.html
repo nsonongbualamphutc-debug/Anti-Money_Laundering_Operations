@@ -178,9 +178,9 @@ tr:hover td{background:var(--glass)}
           <div class="fg"><label>อำเภอ <b>*</b></label><select id="c_district"></select></div>
           <div class="fg"><label>ประเภทคดีมูลฐาน (ฐานความผิด) <b>*</b></label><select id="c_case_type"></select></div>
           <div class="fg"><label>สถานะความคืบหน้า <b>*</b></label><select id="c_status"></select></div>
-          <div class="fg"><label>มูลค่าทรัพย์สินที่เกี่ยวข้อง/ส่งอายัด (บาท)</label>
-            <input id="c_amount" type="number" min="0" step="0.01" placeholder="0"></div>
-          <div class="fg"><label>วันที่รับคดี/บันทึก</label><input id="c_date" type="date"></div>
+          <div class="fg"><label>มูลค่าทรัพย์สินที่เกี่ยวข้อง/ส่งอายัด (บาท) <b>*</b></label>
+            <input id="c_amount" type="number" min="0" step="0.01" placeholder="0"><span class="note">หากยังไม่มี/ไม่ทราบ ให้ใส่ 0</span></div>
+          <div class="fg"><label>วันที่รับคดี/บันทึก <b>*</b></label><input id="c_date" type="date"></div>
           <div class="fg"><label>หน่วยงานผู้บันทึกข้อมูล</label><select id="c_recorder"></select></div>
           <div class="fg full"><label>รายละเอียดสำนวน (เห็นเฉพาะเจ้าหน้าที่ — ไม่แสดงบนแดชบอร์ดสาธารณะ)</label>
             <textarea id="c_detail" rows="2" placeholder="บันทึกภายใน เช่น พฤติการณ์คดี การประสาน ปปง."></textarea></div>
@@ -210,10 +210,10 @@ tr:hover td{background:var(--glass)}
           <div class="fg full"><label>มาตรการหลักที่เกี่ยวข้อง <b>*</b></label><select id="a_measure"></select></div>
           <div class="fg"><label>อำเภอ <b>*</b></label><select id="a_district"></select></div>
           <div class="fg"><label>เดือนที่ดำเนินการ <b>*</b></label><input id="a_month" type="month"></div>
-          <div class="fg"><label>ชื่อกิจกรรม</label><input id="a_activity" placeholder="เช่น ตั้งจุดตรวจสกัดกั้นซิมผี"></div>
-          <div class="fg"><label>จำนวนครั้งที่จัดกิจกรรม/ตั้งจุดตรวจ</label><input id="a_times" type="number" min="0" placeholder="0"></div>
-          <div class="fg"><label>กลุ่มเป้าหมาย/ประชาชนที่เข้าร่วม (คน)</label><input id="a_participants" type="number" min="0" placeholder="0"></div>
-          <div class="fg"><label>จำนวนเงิน/ทรัพย์สินที่ส่งอายัด (บาท)</label><input id="a_amount" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="fg"><label>ชื่อกิจกรรม <b>*</b></label><input id="a_activity" placeholder="เช่น ตั้งจุดตรวจสกัดกั้นซิมผี"></div>
+          <div class="fg"><label>จำนวนครั้งที่จัดกิจกรรม/ตั้งจุดตรวจ <b>*</b></label><input id="a_times" type="number" min="0" placeholder="0"></div>
+          <div class="fg"><label>กลุ่มเป้าหมาย/ประชาชนที่เข้าร่วม (คน) <b>*</b></label><input id="a_participants" type="number" min="0" placeholder="0"></div>
+          <div class="fg"><label>จำนวนเงิน/ทรัพย์สินที่ส่งอายัด (บาท) <b>*</b></label><input id="a_amount" type="number" min="0" step="0.01" placeholder="0"><span class="note">หากไม่มี ให้ใส่ 0</span></div>
           <div class="fg"><label>หน่วยงานผู้บันทึกข้อมูล</label><select id="a_agency"></select></div>
           <div class="fg full"><label>รายละเอียดเพิ่มเติม (เห็นเฉพาะเจ้าหน้าที่)</label>
             <textarea id="a_detail" rows="2"></textarea></div>
@@ -374,6 +374,8 @@ async function saveCase(){
     recorder:$('c_recorder').value
   };
   if(!row.case_no){ toast('กรุณากรอกเลขที่คดี', false); return; }
+  if(!row.date){ toast('กรุณาระบุวันที่รับคดี (ใช้แสดงแทนเลขคดีบนแดชบอร์ดสาธารณะ)', false); return; }
+  if($('c_amount').value.trim()===''){ toast('กรุณาระบุมูลค่าทรัพย์สิน — หากไม่มีให้ใส่ 0', false); return; }
   busy(true);
   try{
     const r = await jsonp({action:'upsert', sheet:'Cases', row:JSON.stringify(row), pin:PIN});
@@ -411,6 +413,10 @@ async function saveAct(){
     month:$('a_month').value, agency:$('a_agency').value, detail:$('a_detail').value.trim()
   };
   if(!row.month){ toast('กรุณาเลือกเดือนที่ดำเนินการ', false); return; }
+  if(!row.activity){ toast('กรุณากรอกชื่อกิจกรรม', false); return; }
+  if($('a_times').value.trim()===''){ toast('กรุณาระบุจำนวนครั้ง — หากไม่มีให้ใส่ 0', false); return; }
+  if($('a_participants').value.trim()===''){ toast('กรุณาระบุจำนวนผู้เข้าร่วม — หากไม่มีให้ใส่ 0', false); return; }
+  if($('a_amount').value.trim()===''){ toast('กรุณาระบุจำนวนเงินส่งอายัด — หากไม่มีให้ใส่ 0', false); return; }
   busy(true);
   try{
     const r = await jsonp({action:'upsert', sheet:'Activities', row:JSON.stringify(row), pin:PIN});
